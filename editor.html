@@ -266,6 +266,45 @@
     }
     .add-color-btn:hover { border-color:#111; color:#111; }
 
+    /* ── Catalog panel ──────────────────────────────── */
+    #catalog-panel {
+      width:210px; background:#fafafa; border-right:1px solid #e8e8e8;
+      display:flex; flex-direction:column; flex-shrink:0;
+    }
+    .catalog-head {
+      padding:10px 12px; border-bottom:1px solid #eee;
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+    }
+    .catalog-head span { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#bbb; }
+    .catalog-head button {
+      background:transparent; border:1px solid #ddd; border-radius:5px;
+      padding:3px 8px; font-size:11px; color:#555; cursor:pointer;
+    }
+    .catalog-head button:hover { background:#ebebeb; border-color:#bbb; }
+    #catalog-body { flex:1; overflow-y:auto; padding:4px 0; }
+    .catalog-empty { font-size:11px; color:#ccc; text-align:center; padding:24px 10px; line-height:1.8; }
+    .cat-group-hd {
+      display:flex; align-items:center; gap:5px; padding:6px 10px;
+      cursor:pointer; font-size:12px; color:#333; font-weight:600; user-select:none;
+    }
+    .cat-group-hd:hover { background:#f0f0f0; }
+    .cat-carr { font-size:9px; color:#bbb; transition:transform .15s; display:inline-block; }
+    .cat-carr.open { transform:rotate(90deg); }
+    .cat-items { }
+    .cat-item {
+      display:flex; align-items:center; gap:6px;
+      padding:5px 8px 5px 20px; border-radius:5px; margin:1px 4px;
+    }
+    .cat-item:hover { background:#efefef; }
+    .cat-item-info { flex:1; min-width:0; }
+    .cat-item-name { font-size:12px; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cat-item-dim { font-size:10px; color:#bbb; margin-top:1px; }
+    .cat-ins-btn {
+      background:#111; color:#fff; border:none; border-radius:4px;
+      padding:3px 7px; font-size:10px; font-weight:700; cursor:pointer; flex-shrink:0;
+    }
+    .cat-ins-btn:hover { background:#444; }
+
     /* ── Modals ───────────────────────────────────── */
     .ov {
       display:none; position:fixed; inset:0;
@@ -332,9 +371,22 @@
   <span id="save-status"></span>
   <button class="btn-ghost" onclick="saveScene()">💾 Salvar</button>
   <button class="btn-ghost" onclick="loadList()">📂 Abrir</button>
+  <div class="sep"></div>
+  <button class="btn-ghost" onclick="openCompWin('browse')">📦 Componentes</button>
 </div>
 
 <div class="workspace">
+  <!-- Left: Catálogo de componentes -->
+  <div id="catalog-panel">
+    <div class="catalog-head">
+      <span>Catálogo</span>
+      <button onclick="openCompWin('browse')">⚙ Gerenciar</button>
+    </div>
+    <div id="catalog-body">
+      <div class="catalog-empty">Carregando…</div>
+    </div>
+  </div>
+
   <div id="canvas-wrap">
     <div class="hint">
       Scroll: zoom ao cursor &nbsp;·&nbsp; Scroll pressionado + arrastar: orbitar &nbsp;·&nbsp; Botão direito: mover câmera<br>
@@ -351,6 +403,7 @@
       </div>
       <div id="props" style="display:none">
         <div class="shape-badge" id="type-lbl">Caixa</div>
+        <div id="comp-name-badge" style="font-size:11px;color:#888;margin-bottom:8px;display:none"></div>
         <div class="prop-group">
           <div class="prop-lbl">Dimensões</div>
           <div class="prop-row">
@@ -713,16 +766,16 @@ const meshes = [];
 let selected = null;
 const NAMES = { box:'Caixa', cylinder:'Cilindro', sphere:'Esfera' };
 
-function makeMat() { return new THREE.MeshLambertMaterial({ color:0xf0ebe0 }); }
+function makeMat(color=0xf0ebe0) { return new THREE.MeshLambertMaterial({ color }); }
 
-function spawnMesh(type, w, h, d, px=0, py=null, pz=0) {
+function spawnMesh(type, w, h, d, px=0, py=null, pz=0, color=0xf0ebe0) {
   let geo;
   if (type==='box')      geo = new THREE.BoxGeometry(1,1,1);
   else if (type==='cylinder') geo = new THREE.CylinderGeometry(0.5,0.5,1,48);
   else if (type==='sphere')   geo = new THREE.SphereGeometry(0.5,48,24);
   else return null;
 
-  const mesh = new THREE.Mesh(geo, makeMat());
+  const mesh = new THREE.Mesh(geo, makeMat(color));
   mesh.castShadow = mesh.receiveShadow = true;
   mesh.scale.set(w,h,d);
   mesh.position.set(px, py ?? h/2, pz);
@@ -775,6 +828,9 @@ function refreshPanel() {
   document.getElementById('pw').value = Math.round(d.w);
   document.getElementById('ph').value = Math.round(d.h);
   document.getElementById('pd').value = Math.round(d.d);
+  const nb = document.getElementById('comp-name-badge');
+  if (d.comp_name) { nb.textContent = '📦 '+d.comp_name; nb.style.display='block'; }
+  else nb.style.display='none';
   document.getElementById('empty-msg').style.display='none';
   document.getElementById('props').style.display='block';
 }
@@ -975,6 +1031,72 @@ async function loadCompData() {
   ]);
   compGroups = gData || [];
   compItems  = cData || [];
+  renderCatalog();
+}
+
+// ── Catalog panel ─────────────────────────────────────────────
+const catExpanded = new Set();
+
+function renderCatalog() {
+  const el = document.getElementById('catalog-body');
+  if (!el) return;
+  const roots = compGroups.filter(g => !g.parent_id);
+  if (!roots.length) {
+    el.innerHTML = '<div class="catalog-empty">Nenhum componente.<br>Clique em ⚙ Gerenciar.</div>';
+    return;
+  }
+  el.innerHTML = buildCatalogHtml(null);
+}
+
+function buildCatalogHtml(parentId) {
+  const groups = compGroups.filter(g => g.parent_id === parentId);
+  let html = '';
+  for (const g of groups) {
+    const isOpen = catExpanded.has(g.id);
+    const items = compItems.filter(c => c.group_id === g.id);
+    html += `<div>
+      <div class="cat-group-hd" onclick="toggleCatGroup('${g.id}')">
+        <span class="cat-carr${isOpen?' open':''}">▶</span>
+        <span>📁 ${esc(g.name)}</span>
+      </div>`;
+    if (isOpen) {
+      html += `<div class="cat-items">`;
+      html += buildCatalogHtml(g.id);
+      for (const c of items) {
+        const cls = Array.isArray(c.colors) ? c.colors : (c.colors ? JSON.parse(c.colors) : []);
+        const dot = cls.length ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cls[0].hex};margin-right:4px;flex-shrink:0"></span>` : '';
+        html += `<div class="cat-item">
+          ${dot}
+          <div class="cat-item-info">
+            <div class="cat-item-name">${esc(c.name)}</div>
+            <div class="cat-item-dim">${Math.round(c.w||600)}×${Math.round(c.h||800)}×${Math.round(c.d||600)} mm</div>
+          </div>
+          <button class="cat-ins-btn" onclick="insertComp('${c.id}')">+</button>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  return html;
+}
+
+function toggleCatGroup(id) {
+  catExpanded.has(id) ? catExpanded.delete(id) : catExpanded.add(id);
+  renderCatalog();
+}
+
+function insertComp(id) {
+  const c = compItems.find(x => x.id === id);
+  if (!c) return;
+  const cls = Array.isArray(c.colors) ? c.colors : (c.colors ? JSON.parse(c.colors) : []);
+  const color = cls.length ? parseInt(cls[0].hex.replace('#',''), 16) : 0xf0ebe0;
+  const m = spawnMesh(c.type||'box', c.w||600, c.h||800, c.d||600, (Math.random()-.5)*400, null, 0, color);
+  if (!m) return;
+  m.userData.comp_id   = c.id;
+  m.userData.comp_name = c.name;
+  sel(m);
+  toast(`"${c.name}" inserido`, 'ok');
 }
 
 // ── Tree rendering ────────────────────────────────────────────
@@ -1348,6 +1470,9 @@ new ResizeObserver(resize).observe(wrap);
 resize();
 
 (function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+
+// Load catalog on startup
+loadCompData();
 </script>
 </body>
 </html>
