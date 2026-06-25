@@ -1161,6 +1161,9 @@ function clickComp(e, id) {
   e.stopPropagation();
   selectedCompId  = id;
   selectedGroupId = null;
+  // init color list for prop tab
+  const c = compItems.find(x=>x.id===id);
+  _compColors = c ? (Array.isArray(c.colors)?[...c.colors]:(c.colors?JSON.parse(c.colors):[])) : [];
   renderCompTree();
   renderRightPane(null, id);
 }
@@ -1433,13 +1436,6 @@ async function savePropComp(id, tab) {
   toast('Salvo!','ok');
 }
 
-// init color list when comp is clicked
-const _origClickComp = clickComp;
-function clickComp(e, id) {
-  _origClickComp(e, id);
-  const c = compItems.find(x=>x.id===id);
-  _compColors = c ? (Array.isArray(c.colors)?[...c.colors]:( c.colors?JSON.parse(c.colors):[] )) : [];
-}
 
 function getAllDescendantIds(parentId) {
   const ids = [];
@@ -1472,7 +1468,10 @@ resize();
 (function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
 
 // Load catalog on startup
-loadCompData();
+loadCompData().catch(()=>{
+  const el = document.getElementById('catalog-body');
+  if (el) el.innerHTML = '<div class="catalog-empty">Clique em ⚙ Gerenciar.</div>';
+});
 </script>
 </body>
 </html>
