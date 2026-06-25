@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Legno – Editor 3D</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      display:flex; flex-direction:column; height:100vh;
+      background:#fff; color:#222;
+      font-family:'Segoe UI',system-ui,sans-serif;
+      overflow:hidden; user-select:none;
+    }
+
+    /* ── Topbar ─────────────────────────────────── */
+    #topbar {
+      height:48px; background:#fff; border-bottom:1px solid #ddd;
+      display:flex; align-items:center; padding:0 16px; gap:8px; flex-shrink:0;
+    }
+    .logo { font-size:13px; font-weight:700; color:#111; letter-spacing:.06em; margin-right:8px; }
+    .sep  { width:1px; height:22px; background:#ddd; margin:0 4px; }
+
+    .btn-primary {
+      background:#111; color:#fff; border:none; border-radius:6px;
+      padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer;
+    }
+    .btn-primary:hover { background:#333; }
+
+    .btn-ghost {
+      background:transparent; color:#444; border:1px solid #ccc;
+      border-radius:6px; padding:6px 14px; font-size:12px; cursor:pointer;
+    }
+    .btn-ghost:hover { background:#f5f5f5; }
+
+    #scene-name {
+      background:transparent; border:none; border-bottom:1px solid #ddd;
+      color:#222; font-size:13px; padding:4px 6px; outline:none; width:170px;
+    }
+    #scene-name:focus { border-bottom-color:#111; }
+    #save-status { font-size:11px; color:#aaa; }
+
+    /* ── Layout ──────────────────────────────────── */
+    .workspace { display:flex; flex:1; overflow:hidden; }
+
+    #canvas-wrap { flex:1; position:relative; background:#fff; }
+    #canvas-wrap canvas { display:block; }
+
+    /* ── Panel ───────────────────────────────────── */
+    #panel {
+      width:220px; background:#fff; border-left:1px solid #ddd;
+      display:flex; flex-direction:column; flex-shrink:0;
+    }
+    .panel-head {
+      padding:13px 16px 9px; font-size:10px; font-weight:700;
+      text-transform:uppercase; letter-spacing:.1em; color:#aaa;
+      border-bottom:1px solid #eee;
+    }
+    .panel-body { flex:1; padding:16px; overflow-y:auto; }
+
+    .empty-msg { color:#ccc; font-size:12px; text-align:center; padding:28px 0; line-height:1.8; }
+
+    .prop-group { margin-bottom:18px; }
+    .prop-lbl {
+      font-size:10px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.08em; color:#bbb; margin-bottom:9px;
+    }
+    .prop-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+    .prop-row label { width:70px; font-size:12px; color:#666; flex-shrink:0; }
+    .prop-row input[type=number] {
+      flex:1; background:#f8f8f8; border:1px solid #e0e0e0; border-radius:5px;
+      color:#111; padding:5px 8px; font-size:13px; outline:none;
+    }
+    .prop-row input[type=number]:focus { border-color:#111; }
+    .prop-row .unit { font-size:11px; color:#bbb; width:22px; text-align:right; flex-shrink:0; }
+
+    .shape-badge {
+      display:inline-block; background:#f5f5f5; border:1px solid #e8e8e8;
+      border-radius:4px; padding:3px 10px; font-size:11px; color:#666; margin-bottom:14px;
+    }
+    .divider { height:1px; background:#eee; margin:6px 0 14px; }
+    .pp-hint { font-size:11px; color:#bbb; text-align:center; padding:6px 0; }
+
+    .btn-del {
+      width:100%; background:transparent; color:#c04040; border:1px solid #e8c0c0;
+      border-radius:6px; padding:7px; font-size:12px; cursor:pointer;
+    }
+    .btn-del:hover { background:#fff5f5; }
+
+    /* ── Context menu ─────────────────────────────── */
+    #ctx {
+      display:none; position:fixed; z-index:200;
+      background:#fff; border:1px solid #ddd; border-radius:8px;
+      box-shadow:0 4px 20px rgba(0,0,0,.12); padding:5px 0; min-width:190px;
+    }
+    .ctx-item {
+      padding:9px 16px; font-size:13px; color:#222; cursor:pointer;
+      display:flex; align-items:center; gap:8px;
+    }
+    .ctx-item:hover { background:#f5f5f5; }
+    .ctx-sep { height:1px; background:#eee; margin:4px 0; }
+
+    /* ── Component window ────────────────────────── */
+    #comp-modal {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.25); z-index:100;
+      align-items:center; justify-content:center;
+    }
+    #comp-modal.open { display:flex; }
+
+    #comp-win {
+      background:#fff; border:1px solid #ddd; border-radius:12px;
+      box-shadow:0 8px 40px rgba(0,0,0,.14);
+      width:720px; max-width:95vw; height:520px; max-height:90vh;
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+
+    #comp-win-head {
+      padding:14px 18px; border-bottom:1px solid #eee;
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+    }
+    #comp-win-head h2 { font-size:14px; font-weight:700; color:#111; }
+    #comp-win-head .close-btn {
+      background:transparent; border:none; font-size:18px;
+      color:#bbb; cursor:pointer; line-height:1; padding:2px 6px;
+    }
+    #comp-win-head .close-btn:hover { color:#444; }
+
+    #comp-win-body { display:flex; flex:1; overflow:hidden; }
+
+    /* Tree pane */
+    #comp-tree-pane {
+      width:260px; border-right:1px solid #eee;
+      display:flex; flex-direction:column; flex-shrink:0;
+    }
+    #comp-tree-head {
+      padding:10px 12px; border-bottom:1px solid #f0f0f0;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    #comp-tree-head span { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#bbb; }
+    #comp-tree-head button {
+      background:#111; color:#fff; border:none; border-radius:5px;
+      padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;
+    }
+    #comp-tree-head button:hover { background:#333; }
+    #comp-tree { flex:1; overflow-y:auto; padding:6px 0; }
+
+    .tree-group {
+      cursor:pointer;
+    }
+    .tree-row {
+      display:flex; align-items:center; gap:6px; padding:6px 10px;
+      border-radius:5px; margin:1px 4px; cursor:pointer;
+      transition:background .1s;
+    }
+    .tree-row:hover { background:#f5f5f5; }
+    .tree-row.selected { background:#f0f0f0; }
+    .tree-row .arrow { font-size:9px; color:#bbb; width:10px; flex-shrink:0; transition:transform .15s; }
+    .tree-row .arrow.open { transform:rotate(90deg); }
+    .tree-row .ico { font-size:14px; flex-shrink:0; }
+    .tree-row .lbl { font-size:12px; color:#222; flex:1; }
+    .tree-row .add-sub {
+      background:transparent; border:none; color:#bbb; cursor:pointer;
+      font-size:14px; line-height:1; padding:0 2px; flex-shrink:0;
+    }
+    .tree-row .add-sub:hover { color:#111; }
+    .tree-children { overflow:hidden; }
+    .comp-leaf .tree-row .ico { font-size:12px; }
+    .comp-leaf .tree-row .lbl { font-size:12px; color:#555; }
+
+    /* Right pane */
+    #comp-right-pane {
+      flex:1; padding:22px 24px; overflow-y:auto;
+      display:flex; flex-direction:column; gap:14px;
+    }
+    .right-hint { font-size:12px; color:#bbb; text-align:center; padding:40px 0; line-height:1.8; }
+    .right-section-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#bbb; margin-bottom:6px; }
+    .right-path { font-size:12px; color:#555; padding:8px 12px; background:#f8f8f8; border-radius:6px; border:1px solid #eee; }
+
+    .inline-input {
+      display:flex; gap:8px; align-items:center;
+    }
+    .inline-input input {
+      flex:1; background:#f8f8f8; border:1px solid #e0e0e0; border-radius:6px;
+      color:#111; padding:7px 10px; font-size:13px; outline:none;
+    }
+    .inline-input input:focus { border-color:#111; }
+    .inline-input button {
+      background:#111; color:#fff; border:none; border-radius:6px;
+      padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+    }
+    .inline-input button:hover { background:#333; }
+
+    .save-comp-box {
+      background:#f8f8f8; border:1px solid #eee; border-radius:8px; padding:16px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .save-comp-box .save-lbl { font-size:11px; color:#999; }
+    .save-comp-box .dim-preview {
+      font-size:12px; color:#666;
+      background:#fff; border:1px solid #e8e8e8; border-radius:5px;
+      padding:6px 10px;
+    }
+    .save-comp-btn {
+      background:#111; color:#fff; border:none; border-radius:7px;
+      padding:9px; font-size:13px; font-weight:600; cursor:pointer; width:100%;
+    }
+    .save-comp-btn:hover { background:#333; }
+    .save-comp-btn:disabled { background:#ccc; cursor:default; }
+
+    .comp-detail-box { display:flex; flex-direction:column; gap:8px; }
+    .comp-detail-row { display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid #f0f0f0; }
+    .comp-detail-row span:first-child { color:#999; }
+    .comp-detail-row span:last-child { color:#222; font-weight:500; }
+
+    .btn-danger-sm {
+      background:transparent; color:#c04040; border:1px solid #e8c0c0;
+      border-radius:5px; padding:5px 12px; font-size:11px; cursor:pointer; margin-top:4px;
+    }
+    .btn-danger-sm:hover { background:#fff5f5; }
+
+    /* ── Modals ───────────────────────────────────── */
+    .ov {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.25); z-index:50;
+      align-items:center; justify-content:center;
+    }
+    .ov.open { display:flex; }
+    .modal {
+      background:#fff; border:1px solid #ddd; border-radius:12px;
+      padding:24px; min-width:300px; max-width:440px; width:100%;
+      box-shadow:0 8px 32px rgba(0,0,0,.1);
+    }
+    .modal h2 { font-size:14px; font-weight:600; margin-bottom:16px; color:#111; }
+
+    .shape-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+    .sc {
+      background:#f8f8f8; border:2px solid #e0e0e0; border-radius:8px;
+      padding:16px 8px 10px; text-align:center; cursor:pointer; transition:border-color .15s;
+    }
+    .sc:hover { border-color:#111; }
+    .sc svg { display:block; margin:0 auto 8px; }
+    .sc span { font-size:11px; color:#666; }
+    .sc:hover span { color:#111; }
+
+    #scene-list { max-height:260px; overflow-y:auto; margin-bottom:16px; }
+    .si {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:9px 12px; border-radius:6px; border:1px solid transparent; cursor:default;
+    }
+    .si:hover { background:#f8f8f8; border-color:#e8e8e8; }
+    .si-title { font-size:13px; color:#222; }
+    .si-date  { font-size:11px; color:#bbb; margin-top:2px; }
+    .si-load  {
+      background:#111; color:#fff; border:none; border-radius:4px;
+      padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; flex-shrink:0;
+    }
+
+    .mf { display:flex; justify-content:flex-end; gap:8px; }
+
+    /* ── Hint ─────────────────────────────────────── */
+    .hint {
+      position:absolute; bottom:12px; left:12px;
+      font-size:11px; color:#bbb; line-height:1.9; pointer-events:none;
+    }
+
+    /* ── Toast ────────────────────────────────────── */
+    #toast {
+      position:fixed; bottom:22px; right:22px; background:#222;
+      border-radius:8px; padding:9px 16px; font-size:12px; color:#fff;
+      opacity:0; transition:opacity .2s; pointer-events:none; z-index:99;
+    }
+    #toast.on  { opacity:1; }
+    #toast.ok  { background:#2a5e2a; }
+    #toast.err { background:#6a2a2a; }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="logo">STUDIO LEGNO</span>
+  <button class="btn-primary" onclick="openModal('modal-shapes')">+ Criar</button>
+  <div class="sep"></div>
+  <input id="scene-name" type="text" value="Sem título" placeholder="Nome da cena">
+  <span id="save-status"></span>
+  <button class="btn-ghost" onclick="saveScene()">💾 Salvar</button>
+  <button class="btn-ghost" onclick="loadList()">📂 Abrir</button>
+</div>
+
+<div class="workspace">
+  <div id="canvas-wrap">
+    <div class="hint">
+      Scroll: zoom ao cursor &nbsp;·&nbsp; Scroll pressionado + arrastar: orbitar &nbsp;·&nbsp; Botão direito: mover câmera<br>
+      Clique: selecionar &nbsp;·&nbsp; Com objeto selecionado, clique+arraste numa face: puxar/empurrar
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="panel-head">Propriedades</div>
+    <div class="panel-body">
+      <div id="empty-msg" class="empty-msg">
+        Nenhum objeto<br>selecionado.<br><br>
+        Clique em <strong>+ Criar</strong>.
+      </div>
+      <div id="props" style="display:none">
+        <div class="shape-badge" id="type-lbl">Caixa</div>
+        <div class="prop-group">
+          <div class="prop-lbl">Dimensões</div>
+          <div class="prop-row">
+            <label>Largura</label>
+            <input type="number" id="pw" min="1" step="1" oninput="applyProps()">
+            <span class="unit">mm</span>
+          </div>
+          <div class="prop-row">
+            <label>Altura</label>
+            <input type="number" id="ph" min="1" step="1" oninput="applyProps()">
+            <span class="unit">mm</span>
+          </div>
+          <div class="prop-row">
+            <label>Profundidade</label>
+            <input type="number" id="pd" min="1" step="1" oninput="applyProps()">
+            <span class="unit">mm</span>
+          </div>
+        </div>
+        <div class="pp-hint">Clique e arraste uma face para puxar/empurrar</div>
+        <div class="divider"></div>
+        <button class="btn-del" onclick="deleteSel()">Excluir objeto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: formas -->
+<div id="modal-shapes" class="ov" onclick="ovClick(event,'modal-shapes')">
+  <div class="modal">
+    <h2>Escolher forma</h2>
+    <div class="shape-grid">
+      <div class="sc" onclick="addShape('box')">
+        <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
+          <rect x="7" y="14" width="22" height="18" rx="1" stroke="#333" stroke-width="1.5"/>
+          <path d="M7 14 L15 7 H37 V25 L29 32 V14 Z" stroke="#333" stroke-width="1.5" fill="none"/>
+          <line x1="29" y1="14" x2="7" y2="14" stroke="#333" stroke-width="1.5"/>
+        </svg>
+        <span>Caixa</span>
+      </div>
+      <div class="sc" onclick="addShape('cylinder')">
+        <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
+          <ellipse cx="20" cy="12" rx="12" ry="4" stroke="#333" stroke-width="1.5"/>
+          <ellipse cx="20" cy="28" rx="12" ry="4" stroke="#333" stroke-width="1.5"/>
+          <line x1="8" y1="12" x2="8" y2="28" stroke="#333" stroke-width="1.5"/>
+          <line x1="32" y1="12" x2="32" y2="28" stroke="#333" stroke-width="1.5"/>
+        </svg>
+        <span>Cilindro</span>
+      </div>
+      <div class="sc" onclick="addShape('sphere')">
+        <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="13" stroke="#333" stroke-width="1.5"/>
+          <ellipse cx="20" cy="20" rx="7" ry="13" stroke="#333" stroke-width="1" stroke-dasharray="3 2"/>
+          <line x1="7" y1="20" x2="33" y2="20" stroke="#333" stroke-width="1" stroke-dasharray="3 2"/>
+        </svg>
+        <span>Esfera</span>
+      </div>
+    </div>
+    <div class="mf"><button class="btn-ghost" onclick="closeModal('modal-shapes')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- Modal: cenas -->
+<div id="modal-scenes" class="ov" onclick="ovClick(event,'modal-scenes')">
+  <div class="modal">
+    <h2>Abrir cena salva</h2>
+    <div id="scene-list"><p style="color:#bbb;font-size:12px">Carregando…</p></div>
+    <div class="mf"><button class="btn-ghost" onclick="closeModal('modal-scenes')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctx">
+  <div class="ctx-item" id="ctx-comp-btn">
+    <span>📦</span> Criar componente
+  </div>
+</div>
+
+<!-- Component window -->
+<div id="comp-modal" onclick="compModalBg(event)">
+  <div id="comp-win">
+    <div id="comp-win-head">
+      <h2>Componentes</h2>
+      <button class="close-btn" onclick="closeCompWin()">✕</button>
+    </div>
+    <div id="comp-win-body">
+
+      <!-- Tree pane -->
+      <div id="comp-tree-pane">
+        <div id="comp-tree-head">
+          <span>Grupos</span>
+          <button onclick="addRootGroup()">+ Grupo</button>
+        </div>
+        <div id="comp-tree"></div>
+      </div>
+
+      <!-- Right pane -->
+      <div id="comp-right-pane">
+        <div id="comp-right-content">
+          <div class="right-hint">
+            Selecione um grupo na árvore<br>para ver as opções.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  Supabase
+// ══════════════════════════════════════════════════════════════
+const db = supabase.createClient(
+  'https://bibtcgcabjngisqwywrs.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYnRjZ2NhYmpuZ2lzcXd5d3JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTkzODAsImV4cCI6MjA5NDAzNTM4MH0.EdzTPyF9Q9Rptd7kc93VAPV_3D0N7ADEjwpbX4l-p8I'
+);
+let sceneId = null;
+
+async function saveScene() {
+  setStatus('Salvando…');
+  const name = document.getElementById('scene-name').value.trim() || 'Sem título';
+  try {
+    let sid = sceneId;
+    if (!sid) {
+      const { data, error } = await db.from('scenes').insert({ name }).select('id').single();
+      if (error) throw error;
+      sid = sceneId = data.id;
+    } else {
+      const { error } = await db.from('scenes').update({ name, updated_at: new Date().toISOString() }).eq('id', sid);
+      if (error) throw error;
+      await db.from('scene_objects').delete().eq('scene_id', sid);
+    }
+    if (meshes.length) {
+      const { error } = await db.from('scene_objects').insert(meshes.map(m => ({
+        scene_id: sid, type: m.userData.type,
+        w: m.userData.w, h: m.userData.h, d: m.userData.d,
+        pos_x: +m.position.x.toFixed(1), pos_y: +m.position.y.toFixed(1), pos_z: +m.position.z.toFixed(1)
+      })));
+      if (error) throw error;
+    }
+    setStatus('Salvo ✓');
+    toast('Cena salva!', 'ok');
+  } catch (e) { setStatus('Erro'); toast(e.message, 'err'); }
+}
+
+async function loadList() {
+  openModal('modal-scenes');
+  const ct = document.getElementById('scene-list');
+  ct.innerHTML = '<p style="color:#bbb;font-size:12px">Carregando…</p>';
+  const { data, error } = await db.from('scenes').select('id,name,updated_at').order('updated_at',{ascending:false}).limit(50);
+  if (error) { ct.innerHTML = `<p style="color:red;font-size:12px">${error.message}</p>`; return; }
+  if (!data?.length) { ct.innerHTML = '<p style="color:#bbb;font-size:12px;text-align:center;padding:20px 0">Nenhuma cena salva.</p>'; return; }
+  ct.innerHTML = data.map(s => `<div class="si">
+    <div><div class="si-title">${esc(s.name)}</div><div class="si-date">${fmt(s.updated_at)}</div></div>
+    <button class="si-load" onclick="loadScene('${s.id}','${esc(s.name)}')">Abrir</button>
+  </div>`).join('');
+}
+
+async function loadScene(id, name) {
+  closeModal('modal-scenes');
+  meshes.forEach(m => { removePermanentEdge(m); scene.remove(m); });
+  meshes.length = 0; sel(null);
+  sceneId = id;
+  document.getElementById('scene-name').value = name;
+  const { data, error } = await db.from('scene_objects').select('*').eq('scene_id', id);
+  if (error) { toast(error.message, 'err'); return; }
+  (data||[]).forEach(o => spawnMesh(o.type, o.w, o.h, o.d, o.pos_x, o.pos_y, o.pos_z));
+  setStatus('Carregado ✓');
+  toast(`"${name}" carregada!`, 'ok');
+}
+
+function setStatus(t) { document.getElementById('save-status').textContent = t; }
+function fmt(iso) { if (!iso) return ''; const d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function esc(s) { return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(msg, type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='on '+(type||'');
+  clearTimeout(el._t); el._t=setTimeout(()=>{el.className='';},3000);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Three.js scene
+// ══════════════════════════════════════════════════════════════
+const wrap = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0xffffff);
+wrap.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+
+// Lights (flat-ish for CAD feel)
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.55);
+sun.position.set(3000, 5000, 2000);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=1; sun.shadow.camera.far=20000;
+sun.shadow.camera.left=sun.shadow.camera.bottom=-6000;
+sun.shadow.camera.right=sun.shadow.camera.top=6000;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xddeeff, 0.25);
+fill.position.set(-2000, 800, -2000);
+scene.add(fill);
+
+// Shadow floor (invisible, no grid)
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(40000,40000),
+  new THREE.ShadowMaterial({ opacity:0.1 })
+);
+floor.rotation.x = -Math.PI/2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ── Camera orbit ─────────────────────────────────────────────
+const orb = { theta:-0.5, phi:1.0, r:3000 };
+const tgt  = new THREE.Vector3(0, 400, 0);
+
+function syncCam() {
+  const sp=Math.sin(orb.phi), cp=Math.cos(orb.phi);
+  camera.position.set(
+    tgt.x + orb.r * sp * Math.sin(orb.theta),
+    tgt.y + orb.r * cp,
+    tgt.z + orb.r * sp * Math.cos(orb.theta)
+  );
+  camera.lookAt(tgt);
+}
+syncCam();
+
+const cv = renderer.domElement;
+const rc = new THREE.Raycaster();
+
+function ndc(cx, cy) {
+  const r = cv.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((cx-r.left)/r.width)*2-1,
+   -((cy-r.top)/r.height)*2+1
+  );
+}
+
+// ── Mouse state ──────────────────────────────────────────────
+let mDown=false, mBtn=-1, mDrag=false, mX=0, mY=0, mSX=0, mSY=0;
+
+// Push/pull state
+const pp = {
+  pending:false, active:false,
+  pendingHit:null,
+  obj:null, axis:null, sign:1,
+  startDim:0, faceStart:new THREE.Vector3(),
+  dragPlane:new THREE.Plane(), normalDir:new THREE.Vector3()
+};
+
+cv.addEventListener('mousedown', e => {
+  mDown=true; mBtn=e.button; mDrag=false;
+  mSX=mX=e.clientX; mSY=mY=e.clientY;
+
+  if (e.button===0 && selected) {
+    rc.setFromCamera(ndc(e.clientX,e.clientY), camera);
+    const hits = rc.intersectObject(selected);
+    if (hits.length) {
+      pp.pending=true;
+      pp.pendingHit=hits[0];
+      e.preventDefault(); return;
+    }
+  }
+  e.preventDefault();
+}, {passive:false});
+
+cv.addEventListener('mousemove', e => {
+  const dx=e.clientX-mX, dy=e.clientY-mY;
+  if (mDown && (Math.abs(e.clientX-mSX)>3||Math.abs(e.clientY-mSY)>3)) mDrag=true;
+
+  if (pp.pending && mDrag) {
+    // Convert pending to active
+    beginPP(pp.pendingHit);
+    pp.pending=false;
+  }
+
+  if (pp.active) {
+    movePP(e.clientX, e.clientY);
+  } else if (mDown) {
+    if (mBtn===1) {                          // Middle drag → orbit
+      orb.theta -= dx*0.007;
+      orb.phi = Math.max(0.06, Math.min(Math.PI-0.06, orb.phi+dy*0.007));
+      syncCam();
+    } else if (mBtn===2) {                   // Right drag → pan
+      panCam(dx,dy);
+    } else if (mBtn===0 && !pp.pending) {    // Left drag (empty) → pan
+      panCam(dx,dy);
+    }
+  } else if (selected) {
+    // Hover face highlight
+    rc.setFromCamera(ndc(e.clientX,e.clientY), camera);
+    const hits = rc.intersectObject(selected);
+    if (hits.length) {
+      const fi = faceInfo(hits[0]);
+      if (fi) { showFaceHL(selected, fi); cv.style.cursor='crosshair'; }
+    } else {
+      hideFaceHL(); cv.style.cursor='default';
+    }
+  }
+
+  mX=e.clientX; mY=e.clientY;
+});
+
+window.addEventListener('mouseup', e => {
+  if (pp.active) { pp.active=false; cv.style.cursor='default'; mDown=false; mBtn=-1; return; }
+  if (pp.pending) { pp.pending=false; }
+  else if (mDown && !mDrag && e.button===0) {    // left click no canvas: select / deselect
+    rc.setFromCamera(ndc(e.clientX,e.clientY), camera);
+    const hits = rc.intersectObjects(meshes);
+    sel(hits.length ? hits[0].object : null);
+  }
+  // right click no canvas sem arrastar → menu de contexto
+  if (mDown && !mDrag && e.button===2 && rightDownObj) {
+    showCtxMenu(e.clientX, e.clientY, rightDownObj);
+  }
+  rightDownObj = null;
+  mDown=false; mBtn=-1; mDrag=false;
+});
+
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  // Zoom toward cursor
+  rc.setFromCamera(ndc(e.clientX,e.clientY), camera);
+  const hits = rc.intersectObjects([floor,...meshes]);
+  const pt = hits.length ? hits[0].point : (() => {
+    const p=new THREE.Vector3();
+    rc.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-tgt.y), p);
+    return p;
+  })();
+  const factor = e.deltaY>0 ? 1.12 : 0.89;
+  orb.r = Math.max(100, Math.min(25000, orb.r*factor));
+  if (pt) tgt.lerp(pt, e.deltaY>0 ? 0.05 : 0.08);
+  syncCam();
+}, {passive:false});
+
+function panCam(dx,dy) {
+  const speed = orb.r*0.001;
+  const right=new THREE.Vector3();
+  right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), new THREE.Vector3(0,1,0)).normalize();
+  tgt.addScaledVector(right,-dx*speed);
+  tgt.y += dy*speed;
+  syncCam();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Objects
+// ══════════════════════════════════════════════════════════════
+const meshes = [];
+let selected = null;
+const NAMES = { box:'Caixa', cylinder:'Cilindro', sphere:'Esfera' };
+
+function makeMat() { return new THREE.MeshLambertMaterial({ color:0xf0ebe0 }); }
+
+function spawnMesh(type, w, h, d, px=0, py=null, pz=0) {
+  let geo;
+  if (type==='box')      geo = new THREE.BoxGeometry(1,1,1);
+  else if (type==='cylinder') geo = new THREE.CylinderGeometry(0.5,0.5,1,48);
+  else if (type==='sphere')   geo = new THREE.SphereGeometry(0.5,48,24);
+  else return null;
+
+  const mesh = new THREE.Mesh(geo, makeMat());
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.scale.set(w,h,d);
+  mesh.position.set(px, py ?? h/2, pz);
+  mesh.userData = { type, w, h, d };
+
+  // Permanent black edge
+  const eGeo = new THREE.EdgesGeometry(geo, 1);
+  const edge = new THREE.LineSegments(eGeo, new THREE.LineBasicMaterial({color:0x333333}));
+  mesh.userData.permEdge = edge;
+  mesh.add(edge);
+
+  scene.add(mesh);
+  meshes.push(mesh);
+  return mesh;
+}
+
+function addShape(type) {
+  closeModal('modal-shapes');
+  const m = spawnMesh(type, 600, 800, 600, (Math.random()-.5)*400);
+  if (m) sel(m);
+}
+
+function removePermanentEdge(mesh) {
+  if (mesh.userData.permEdge) mesh.remove(mesh.userData.permEdge);
+}
+
+// ── Selection ─────────────────────────────────────────────────
+let selEdge = null;
+
+function sel(mesh) {
+  // Remove old selection edge
+  if (selected && selEdge) { selected.remove(selEdge); selEdge=null; }
+  hideFaceHL();
+  selected = mesh;
+
+  if (selected) {
+    const eGeo = new THREE.EdgesGeometry(selected.geometry, 1);
+    selEdge = new THREE.LineSegments(eGeo, new THREE.LineBasicMaterial({color:0xff2200, linewidth:2}));
+    selected.add(selEdge);
+    refreshPanel();
+  } else {
+    showEmpty();
+  }
+}
+
+function refreshPanel() {
+  if (!selected) return;
+  const d=selected.userData;
+  document.getElementById('type-lbl').textContent = NAMES[d.type]||d.type;
+  document.getElementById('pw').value = Math.round(d.w);
+  document.getElementById('ph').value = Math.round(d.h);
+  document.getElementById('pd').value = Math.round(d.d);
+  document.getElementById('empty-msg').style.display='none';
+  document.getElementById('props').style.display='block';
+}
+function showEmpty() {
+  document.getElementById('empty-msg').style.display='block';
+  document.getElementById('props').style.display='none';
+}
+
+function applyProps() {
+  if (!selected) return;
+  const w=parseFloat(document.getElementById('pw').value);
+  const h=parseFloat(document.getElementById('ph').value);
+  const d=parseFloat(document.getElementById('pd').value);
+  if ([w,h,d].some(v=>isNaN(v)||v<1)) return;
+  selected.userData.w=w; selected.userData.h=h; selected.userData.d=d;
+  selected.scale.set(w,h,d);
+  selected.position.y=h/2;
+  if (faceHLMesh?.visible && hoverFaceInfo && selected) positionFaceHL(selected, hoverFaceInfo);
+}
+
+function deleteSel() {
+  if (!selected) return;
+  if (selEdge) selected.remove(selEdge);
+  scene.remove(selected);
+  meshes.splice(meshes.indexOf(selected),1);
+  selected=null; selEdge=null;
+  hideFaceHL(); showEmpty();
+}
+
+// ── Face highlight ────────────────────────────────────────────
+let faceHLMesh=null, hoverFaceInfo=null;
+
+function faceInfo(hit) {
+  const n=hit.face.normal;
+  const ax=Math.abs(n.x), ay=Math.abs(n.y), az=Math.abs(n.z);
+  if (ax>ay && ax>az) return {axis:'w', sign:n.x>0?1:-1};
+  if (ay>ax && ay>az) return {axis:'h', sign:n.y>0?1:-1};
+  return {axis:'d', sign:n.z>0?1:-1};
+}
+
+function ensureFaceHL() {
+  if (faceHLMesh) return;
+  faceHLMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1,1),
+    new THREE.MeshBasicMaterial({color:0xff3300, transparent:true, opacity:0.22, side:THREE.DoubleSide, depthTest:false})
+  );
+  faceHLMesh.renderOrder=1;
+  scene.add(faceHLMesh);
+}
+
+function showFaceHL(obj, fi) {
+  ensureFaceHL();
+  hoverFaceInfo=fi;
+  positionFaceHL(obj, fi);
+  faceHLMesh.visible=true;
+}
+
+function positionFaceHL(obj, fi) {
+  if (!faceHLMesh) return;
+  const d=obj.userData, pos=obj.position.clone(), OFS=2;
+  faceHLMesh.rotation.set(0,0,0);
+  if (fi.axis==='w') {
+    pos.x += fi.sign*(d.w/2+OFS);
+    faceHLMesh.scale.set(d.d, d.h, 1);
+    faceHLMesh.rotation.y = Math.PI/2;
+  } else if (fi.axis==='h') {
+    pos.y += fi.sign*(d.h/2+OFS);
+    faceHLMesh.scale.set(d.w, d.d, 1);
+    faceHLMesh.rotation.x = -Math.PI/2;
+  } else {
+    pos.z += fi.sign*(d.d/2+OFS);
+    faceHLMesh.scale.set(d.w, d.h, 1);
+  }
+  faceHLMesh.position.copy(pos);
+}
+
+function hideFaceHL() {
+  if (faceHLMesh) faceHLMesh.visible=false;
+  hoverFaceInfo=null;
+}
+
+// ── Push / Pull ───────────────────────────────────────────────
+function beginPP(hit) {
+  const fi = faceInfo(hit);
+  if (!fi) return;
+  const obj=hit.object, d=obj.userData;
+
+  pp.active=true; pp.obj=obj; pp.axis=fi.axis; pp.sign=fi.sign;
+  pp.startDim = d[fi.axis];
+
+  pp.normalDir.set(
+    fi.axis==='w'?fi.sign:0,
+    fi.axis==='h'?fi.sign:0,
+    fi.axis==='d'?fi.sign:0
+  );
+
+  pp.faceStart.copy(obj.position);
+  if (fi.axis==='w') pp.faceStart.x += fi.sign*d.w/2;
+  else if (fi.axis==='h') pp.faceStart.y += fi.sign*d.h/2;
+  else pp.faceStart.z += fi.sign*d.d/2;
+
+  const camDir=new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  pp.dragPlane.setFromNormalAndCoplanarPoint(camDir, pp.faceStart);
+
+  showFaceHL(obj, fi);
+  cv.style.cursor='ns-resize';
+}
+
+function movePP(cx, cy) {
+  rc.setFromCamera(ndc(cx,cy), camera);
+  const pt=new THREE.Vector3();
+  if (!rc.ray.intersectPlane(pp.dragPlane, pt)) return;
+
+  const delta = pt.clone().sub(pp.faceStart).dot(pp.normalDir);
+  const newDim = Math.max(1, pp.startDim+delta);
+  const d=pp.obj.userData;
+  d[pp.axis]=newDim;
+  pp.obj.scale.set(d.w, d.h, d.d);
+  if (pp.axis==='h') pp.obj.position.y=d.h/2;
+
+  document.getElementById('p'+pp.axis).value = Math.round(newDim);
+  positionFaceHL(pp.obj, {axis:pp.axis, sign:pp.sign});
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Context menu
+// ══════════════════════════════════════════════════════════════
+let ctxObj = null;  // object that was right-clicked
+let rightDownObj = null;
+
+// Detect right-click target on mousedown
+cv.addEventListener('mousedown', e => {
+  if (e.button === 2) {
+    rc.setFromCamera(ndc(e.clientX, e.clientY), camera);
+    const hits = rc.intersectObjects(meshes);
+    rightDownObj = hits.length ? hits[0].object : null;
+  }
+}, true);
+
+window.addEventListener('mousedown', e => {
+  if (!document.getElementById('ctx').contains(e.target)) hideCtxMenu();
+});
+
+function showCtxMenu(x, y, obj) {
+  ctxObj = obj;
+  const el = document.getElementById('ctx');
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  el.style.display = 'block';
+  // Clamp to viewport
+  const r = el.getBoundingClientRect();
+  if (r.right  > window.innerWidth)  el.style.left = (x - r.width)  + 'px';
+  if (r.bottom > window.innerHeight) el.style.top  = (y - r.height) + 'px';
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctx').style.display = 'none';
+}
+
+document.getElementById('ctx-comp-btn').addEventListener('click', () => {
+  hideCtxMenu();
+  openCompWin('save');
+});
+
+// ══════════════════════════════════════════════════════════════
+//  Component manager
+// ══════════════════════════════════════════════════════════════
+let compGroups = [];      // all groups from DB
+let compItems  = [];      // all components from DB
+let expandedGroups = new Set();
+let selectedGroupId = null;
+let selectedCompId  = null;
+let compWinMode = 'browse'; // 'browse' | 'save'
+
+async function openCompWin(mode='browse') {
+  compWinMode = mode;
+  document.getElementById('comp-modal').classList.add('open');
+  await loadCompData();
+  renderCompTree();
+  renderRightPane(null, null);
+}
+
+function closeCompWin() {
+  document.getElementById('comp-modal').classList.remove('open');
+  selectedGroupId = null;
+  selectedCompId  = null;
+}
+
+function compModalBg(e) {
+  if (e.target === document.getElementById('comp-modal')) closeCompWin();
+}
+
+async function loadCompData() {
+  const [{ data: gData }, { data: cData }] = await Promise.all([
+    db.from('component_groups').select('*').order('name'),
+    db.from('components').select('*').order('name')
+  ]);
+  compGroups = gData || [];
+  compItems  = cData || [];
+}
+
+// ── Tree rendering ────────────────────────────────────────────
+function renderCompTree() {
+  document.getElementById('comp-tree').innerHTML = buildTreeHtml(null, 0);
+}
+
+function buildTreeHtml(parentId, depth) {
+  const groups = compGroups.filter(g => g.parent_id === parentId);
+  let html = '';
+  for (const g of groups) {
+    const isOpen = expandedGroups.has(g.id);
+    const isSel  = selectedGroupId === g.id;
+    const children = compGroups.filter(c => c.parent_id === g.id);
+    const leaves   = compItems.filter(c => c.group_id === g.id);
+    const hasKids  = children.length > 0 || leaves.length > 0;
+    const pad = depth * 14;
+
+    html += `<div class="tree-group">
+      <div class="tree-row${isSel?' selected':''}" style="padding-left:${10+pad}px"
+           onclick="clickGroup(event,'${g.id}')">
+        <span class="arrow${isOpen?' open':''}">▶</span>
+        <span class="ico">📁</span>
+        <span class="lbl">${esc(g.name)}</span>
+        <button class="add-sub" title="Adicionar subgrupo" onclick="event.stopPropagation();addSubGroup('${g.id}')">+</button>
+      </div>`;
+
+    if (isOpen) {
+      html += `<div class="tree-children">`;
+      html += buildTreeHtml(g.id, depth + 1);
+      // Component leaves
+      for (const c of leaves) {
+        const isSelC = selectedCompId === c.id;
+        html += `<div class="comp-leaf">
+          <div class="tree-row${isSelC?' selected':''}" style="padding-left:${10+pad+18}px"
+               onclick="clickComp(event,'${c.id}')">
+            <span class="arrow" style="visibility:hidden">▶</span>
+            <span class="ico">📄</span>
+            <span class="lbl">${esc(c.name)}</span>
+          </div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  return html;
+}
+
+function clickGroup(e, id) {
+  e.stopPropagation();
+  // Toggle expand
+  if (expandedGroups.has(id)) expandedGroups.delete(id);
+  else expandedGroups.add(id);
+  selectedGroupId = id;
+  selectedCompId  = null;
+  renderCompTree();
+  renderRightPane(id, null);
+}
+
+function clickComp(e, id) {
+  e.stopPropagation();
+  selectedCompId  = id;
+  selectedGroupId = null;
+  renderCompTree();
+  renderRightPane(null, id);
+}
+
+// ── Right pane ────────────────────────────────────────────────
+function renderRightPane(groupId, compId) {
+  const el = document.getElementById('comp-right-content');
+
+  if (!groupId && !compId) {
+    el.innerHTML = `<div class="right-hint">Selecione um grupo na árvore<br>para ver as opções.</div>`;
+    return;
+  }
+
+  if (compId) {
+    const c = compItems.find(x=>x.id===compId);
+    if (!c) return;
+    el.innerHTML = `
+      <div>
+        <div class="right-section-lbl">Componente</div>
+        <div class="comp-detail-box">
+          <div class="comp-detail-row"><span>Nome</span><span>${esc(c.name)}</span></div>
+          <div class="comp-detail-row"><span>Tipo</span><span>${c.type==='box'?'Caixa':c.type==='cylinder'?'Cilindro':'Esfera'}</span></div>
+          <div class="comp-detail-row"><span>Largura</span><span>${Math.round(c.w)} mm</span></div>
+          <div class="comp-detail-row"><span>Altura</span><span>${Math.round(c.h)} mm</span></div>
+          <div class="comp-detail-row"><span>Profundidade</span><span>${Math.round(c.d)} mm</span></div>
+        </div>
+        <button class="btn-danger-sm" onclick="deleteComp('${c.id}')">Excluir componente</button>
+      </div>`;
+    return;
+  }
+
+  // Group selected
+  const g = compGroups.find(x=>x.id===groupId);
+  if (!g) return;
+  const path = getGroupPath(groupId);
+
+  let html = `
+    <div>
+      <div class="right-section-lbl">Grupo selecionado</div>
+      <div class="right-path">📁 ${esc(path)}</div>
+    </div>
+    <div>
+      <div class="right-section-lbl">Novo subgrupo</div>
+      <div class="inline-input">
+        <input id="new-sub-name" type="text" placeholder="Nome do subgrupo">
+        <button onclick="addSubGroup('${groupId}')">Criar</button>
+      </div>
+    </div>`;
+
+  if (compWinMode === 'save' && ctxObj) {
+    const d = ctxObj.userData;
+    html += `
+    <div>
+      <div class="right-section-lbl">Salvar como componente aqui</div>
+      <div class="save-comp-box">
+        <div class="save-lbl">Peça: ${d.type==='box'?'Caixa':d.type==='cylinder'?'Cilindro':'Esfera'}</div>
+        <div class="dim-preview">L ${Math.round(d.w)} × A ${Math.round(d.h)} × P ${Math.round(d.d)} mm</div>
+        <input id="comp-name-inp" type="text" placeholder="Nome do componente"
+               style="background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:7px 10px;font-size:13px;outline:none;width:100%">
+        <button class="save-comp-btn" onclick="saveAsComp('${groupId}')">💾 Salvar componente</button>
+      </div>
+    </div>`;
+  }
+
+  html += `<div><button class="btn-danger-sm" onclick="deleteGroup('${groupId}')">Excluir grupo</button></div>`;
+  el.innerHTML = html;
+}
+
+function getGroupPath(id) {
+  const parts = [];
+  let cur = compGroups.find(g=>g.id===id);
+  while (cur) {
+    parts.unshift(cur.name);
+    cur = cur.parent_id ? compGroups.find(g=>g.id===cur.parent_id) : null;
+  }
+  return parts.join(' › ');
+}
+
+// ── CRUD ──────────────────────────────────────────────────────
+async function addRootGroup() {
+  const name = prompt('Nome do grupo:');
+  if (!name?.trim()) return;
+  const { data, error } = await db.from('component_groups').insert({ name: name.trim() }).select('*').single();
+  if (error) { toast(error.message,'err'); return; }
+  compGroups.push(data);
+  expandedGroups.add(data.id);
+  selectedGroupId = data.id;
+  renderCompTree();
+  renderRightPane(data.id, null);
+}
+
+async function addSubGroup(parentId) {
+  const nameEl = document.getElementById('new-sub-name');
+  const name = nameEl ? nameEl.value.trim() : prompt('Nome do subgrupo:');
+  if (!name) return;
+  const { data, error } = await db.from('component_groups').insert({ name, parent_id: parentId }).select('*').single();
+  if (error) { toast(error.message,'err'); return; }
+  compGroups.push(data);
+  expandedGroups.add(parentId);
+  expandedGroups.add(data.id);
+  selectedGroupId = data.id;
+  renderCompTree();
+  renderRightPane(data.id, null);
+}
+
+async function saveAsComp(groupId) {
+  const nameEl = document.getElementById('comp-name-inp');
+  const name = nameEl?.value.trim();
+  if (!name) { nameEl?.focus(); return; }
+  if (!ctxObj) return;
+  const d = ctxObj.userData;
+  const { data, error } = await db.from('components').insert({
+    group_id: groupId, name, type: d.type,
+    w: d.w, h: d.h, d: d.d
+  }).select('*').single();
+  if (error) { toast(error.message,'err'); return; }
+  compItems.push(data);
+  toast(`"${name}" salvo!`, 'ok');
+  selectedCompId = data.id;
+  renderCompTree();
+  renderRightPane(null, data.id);
+}
+
+async function deleteComp(id) {
+  if (!confirm('Excluir componente?')) return;
+  const { error } = await db.from('components').delete().eq('id', id);
+  if (error) { toast(error.message,'err'); return; }
+  compItems = compItems.filter(c=>c.id!==id);
+  selectedCompId = null;
+  renderCompTree();
+  renderRightPane(selectedGroupId, null);
+}
+
+async function deleteGroup(id) {
+  if (!confirm('Excluir grupo e todos os subgrupos/componentes dentro?')) return;
+  const { error } = await db.from('component_groups').delete().eq('id', id);
+  if (error) { toast(error.message,'err'); return; }
+  // Remove from local cache (cascade handled by DB)
+  const removeIds = getAllDescendantIds(id);
+  removeIds.push(id);
+  compGroups = compGroups.filter(g=>!removeIds.includes(g.id));
+  compItems  = compItems.filter(c=>!removeIds.includes(c.group_id));
+  selectedGroupId = null;
+  renderCompTree();
+  renderRightPane(null, null);
+}
+
+function getAllDescendantIds(parentId) {
+  const ids = [];
+  for (const g of compGroups.filter(g=>g.parent_id===parentId)) {
+    ids.push(g.id);
+    ids.push(...getAllDescendantIds(g.id));
+  }
+  return ids;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Modals
+// ══════════════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function ovClick(e,id)  { if (e.target===document.getElementById(id)) closeModal(id); }
+
+// ══════════════════════════════════════════════════════════════
+//  Resize + render
+// ══════════════════════════════════════════════════════════════
+function resize() {
+  const w=wrap.clientWidth, h=wrap.clientHeight;
+  renderer.setSize(w,h);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(wrap);
+resize();
+
+(function loop(){ requestAnimationFrame(loop); renderer.render(scene,camera); })();
+</script>
+</body>
+</html>
