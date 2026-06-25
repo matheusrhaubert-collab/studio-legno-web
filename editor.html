@@ -220,6 +220,52 @@
     }
     .btn-danger-sm:hover { background:#fff5f5; }
 
+    /* ── Component properties tabs ──────────────────── */
+    #comp-right-pane { padding:0; }
+    #comp-right-content { padding:0; height:100%; display:flex; flex-direction:column; }
+    .right-hint { padding:40px 24px; }
+    .comp-prop-header { padding:18px 20px 0; }
+    .comp-prop-name { font-size:15px; font-weight:700; color:#111; margin-bottom:3px; }
+    .comp-prop-type { font-size:11px; color:#999; }
+    .prop-tabs { display:flex; border-bottom:1px solid #eee; padding:0 20px; margin-top:10px; }
+    .prop-tab {
+      background:none; border:none; border-bottom:2px solid transparent;
+      padding:8px 14px; font-size:12px; font-weight:600; color:#bbb;
+      cursor:pointer; margin-bottom:-1px;
+    }
+    .prop-tab:hover { color:#555; }
+    .prop-tab.active { color:#111; border-bottom-color:#111; }
+    .prop-tab-body { flex:1; overflow-y:auto; padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+    .prop-tab-body.hidden { display:none; }
+    .prop-field { display:flex; flex-direction:column; gap:5px; }
+    .prop-field label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#bbb; }
+    .prop-field input[type=number], .prop-field input[type=text] {
+      background:#f8f8f8; border:1px solid #e0e0e0; border-radius:6px;
+      padding:7px 10px; font-size:13px; color:#111; outline:none; width:100%;
+    }
+    .prop-field input:focus { border-color:#111; background:#fff; }
+    .prop-dim-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .prop-section-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#bbb; }
+    .prop-save-btn {
+      background:#111; color:#fff; border:none; border-radius:7px;
+      padding:9px; font-size:13px; font-weight:600; cursor:pointer; width:100%; margin-top:4px;
+    }
+    .prop-save-btn:hover { background:#333; }
+    .color-list { display:flex; flex-direction:column; gap:8px; }
+    .color-item { display:flex; align-items:center; gap:8px; }
+    .color-item input[type=color] {
+      width:36px; height:36px; border:none; border-radius:6px;
+      cursor:pointer; padding:2px; background:#f0f0f0; flex-shrink:0;
+    }
+    .color-item .color-name { flex:1; }
+    .color-item .rm-color { background:none; border:none; color:#ccc; cursor:pointer; font-size:17px; padding:2px 4px; }
+    .color-item .rm-color:hover { color:#c04040; }
+    .add-color-btn {
+      background:#f8f8f8; border:1px dashed #ddd; border-radius:7px;
+      padding:8px; font-size:12px; color:#888; cursor:pointer; width:100%;
+    }
+    .add-color-btn:hover { border-color:#111; color:#111; }
+
     /* ── Modals ───────────────────────────────────── */
     .ov {
       display:none; position:fixed; inset:0;
@@ -1009,17 +1055,69 @@ function renderRightPane(groupId, compId) {
   if (compId) {
     const c = compItems.find(x=>x.id===compId);
     if (!c) return;
+    const colors = Array.isArray(c.colors) ? c.colors : (c.colors ? JSON.parse(c.colors) : []);
+    const typeName = c.type==='box'?'Caixa':c.type==='cylinder'?'Cilindro':'Esfera';
     el.innerHTML = `
-      <div>
-        <div class="right-section-lbl">Componente</div>
-        <div class="comp-detail-box">
-          <div class="comp-detail-row"><span>Nome</span><span>${esc(c.name)}</span></div>
-          <div class="comp-detail-row"><span>Tipo</span><span>${c.type==='box'?'Caixa':c.type==='cylinder'?'Cilindro':'Esfera'}</span></div>
-          <div class="comp-detail-row"><span>Largura</span><span>${Math.round(c.w)} mm</span></div>
-          <div class="comp-detail-row"><span>Altura</span><span>${Math.round(c.h)} mm</span></div>
-          <div class="comp-detail-row"><span>Profundidade</span><span>${Math.round(c.d)} mm</span></div>
+      <div class="comp-prop-header">
+        <div class="comp-prop-name">${esc(c.name)}</div>
+        <div class="comp-prop-type">${typeName}</div>
+      </div>
+      <div class="prop-tabs">
+        <button class="prop-tab active" onclick="switchPropTab('dim')">Dimensões</button>
+        <button class="prop-tab" onclick="switchPropTab('cost')">Custos</button>
+        <button class="prop-tab" onclick="switchPropTab('cores')">Cores</button>
+      </div>
+
+      <!-- Tab: Dimensões -->
+      <div id="ptab-dim" class="prop-tab-body">
+        <div>
+          <div class="prop-section-lbl" style="margin-bottom:8px">Dimensão atual</div>
+          <div class="prop-dim-grid">
+            <div class="prop-field"><label>Largura (mm)</label><input type="number" id="pp-w" value="${Math.round(c.w)}" min="1"></div>
+            <div class="prop-field"><label>Altura (mm)</label><input type="number" id="pp-h" value="${Math.round(c.h)}" min="1"></div>
+            <div class="prop-field"><label>Profundidade (mm)</label><input type="number" id="pp-d" value="${Math.round(c.d)}" min="1"></div>
+          </div>
         </div>
+        <div>
+          <div class="prop-section-lbl" style="margin-bottom:8px">Tamanho mínimo</div>
+          <div class="prop-dim-grid">
+            <div class="prop-field"><label>Min Largura</label><input type="number" id="pp-minw" value="${c.min_w||''}" min="1" placeholder="—"></div>
+            <div class="prop-field"><label>Min Altura</label><input type="number" id="pp-minh" value="${c.min_h||''}" min="1" placeholder="—"></div>
+            <div class="prop-field"><label>Min Profund.</label><input type="number" id="pp-mind" value="${c.min_d||''}" min="1" placeholder="—"></div>
+          </div>
+        </div>
+        <div>
+          <div class="prop-section-lbl" style="margin-bottom:8px">Tamanho máximo</div>
+          <div class="prop-dim-grid">
+            <div class="prop-field"><label>Max Largura</label><input type="number" id="pp-maxw" value="${c.max_w||''}" min="1" placeholder="—"></div>
+            <div class="prop-field"><label>Max Altura</label><input type="number" id="pp-maxh" value="${c.max_h||''}" min="1" placeholder="—"></div>
+            <div class="prop-field"><label>Max Profund.</label><input type="number" id="pp-maxd" value="${c.max_d||''}" min="1" placeholder="—"></div>
+          </div>
+        </div>
+        <button class="prop-save-btn" onclick="savePropComp('${c.id}','dim')">💾 Salvar dimensões</button>
         <button class="btn-danger-sm" onclick="deleteComp('${c.id}')">Excluir componente</button>
+      </div>
+
+      <!-- Tab: Custos -->
+      <div id="ptab-cost" class="prop-tab-body hidden">
+        <div class="prop-field"><label>Custo de material (R$)</label><input type="number" id="pp-cost" value="${c.cost||''}" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="prop-field"><label>Mão de obra (R$)</label><input type="number" id="pp-labor" value="${c.labor||''}" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="prop-field"><label>Margem (%)</label><input type="number" id="pp-margin" value="${c.margin||''}" min="0" step="1" placeholder="0"></div>
+        <button class="prop-save-btn" onclick="savePropComp('${c.id}','cost')">💾 Salvar custos</button>
+      </div>
+
+      <!-- Tab: Cores -->
+      <div id="ptab-cores" class="prop-tab-body hidden">
+        <div class="color-list" id="color-list">
+          ${colors.map((cl,i)=>`
+            <div class="color-item" id="ci-${i}">
+              <input type="color" value="${cl.hex||'#cccccc'}" onchange="updateCompColor(${i},'hex',this.value)">
+              <input type="text" class="color-name" value="${esc(cl.name||'')}" placeholder="Nome da cor" oninput="updateCompColor(${i},'name',this.value)">
+              <button class="rm-color" onclick="removeCompColor(${i})">✕</button>
+            </div>`).join('')}
+        </div>
+        <button class="add-color-btn" onclick="addCompColor()">+ Adicionar cor</button>
+        <button class="prop-save-btn" onclick="savePropComp('${c.id}','cores')">💾 Salvar cores</button>
       </div>`;
     return;
   }
@@ -1138,6 +1236,87 @@ async function deleteGroup(id) {
   selectedGroupId = null;
   renderCompTree();
   renderRightPane(null, null);
+}
+
+// ── Component property tabs ───────────────────────────────────
+function switchPropTab(name) {
+  ['dim','cost','cores'].forEach(t => {
+    const body = document.getElementById('ptab-'+t);
+    if (body) body.classList.toggle('hidden', t !== name);
+  });
+  document.querySelectorAll('.prop-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(
+      name==='dim'?'dimen':name==='cost'?'custo':'cor'
+    ));
+  });
+}
+
+let _compColors = [];
+function addCompColor() {
+  _compColors.push({ hex:'#cccccc', name:'' });
+  refreshColorList();
+}
+function removeCompColor(i) {
+  _compColors.splice(i,1);
+  refreshColorList();
+}
+function updateCompColor(i, key, val) {
+  if (_compColors[i]) _compColors[i][key] = val;
+}
+function refreshColorList() {
+  const el = document.getElementById('color-list');
+  if (!el) return;
+  el.innerHTML = _compColors.map((cl,i)=>`
+    <div class="color-item">
+      <input type="color" value="${cl.hex||'#cccccc'}" onchange="updateCompColor(${i},'hex',this.value)">
+      <input type="text" class="color-name" value="${esc(cl.name||'')}" placeholder="Nome da cor" oninput="updateCompColor(${i},'name',this.value)">
+      <button class="rm-color" onclick="removeCompColor(${i})">✕</button>
+    </div>`).join('');
+}
+
+async function savePropComp(id, tab) {
+  const c = compItems.find(x=>x.id===id);
+  if (!c) return;
+  let upd = {};
+  if (tab==='dim') {
+    upd = {
+      w: +document.getElementById('pp-w').value || c.w,
+      h: +document.getElementById('pp-h').value || c.h,
+      d: +document.getElementById('pp-d').value || c.d,
+      min_w: +document.getElementById('pp-minw').value || null,
+      min_h: +document.getElementById('pp-minh').value || null,
+      min_d: +document.getElementById('pp-mind').value || null,
+      max_w: +document.getElementById('pp-maxw').value || null,
+      max_h: +document.getElementById('pp-maxh').value || null,
+      max_d: +document.getElementById('pp-maxd').value || null,
+    };
+  } else if (tab==='cost') {
+    upd = {
+      cost:   +document.getElementById('pp-cost').value   || null,
+      labor:  +document.getElementById('pp-labor').value  || null,
+      margin: +document.getElementById('pp-margin').value || null,
+    };
+  } else if (tab==='cores') {
+    // collect current values from DOM before save
+    document.querySelectorAll('#color-list .color-item').forEach((row,i)=>{
+      if (!_compColors[i]) return;
+      _compColors[i].hex  = row.querySelector('input[type=color]').value;
+      _compColors[i].name = row.querySelector('input[type=text]').value;
+    });
+    upd = { colors: _compColors };
+  }
+  const { error } = await db.from('components').update(upd).eq('id', id);
+  if (error) { toast(error.message,'err'); return; }
+  Object.assign(c, upd);
+  toast('Salvo!','ok');
+}
+
+// init color list when comp is clicked
+const _origClickComp = clickComp;
+function clickComp(e, id) {
+  _origClickComp(e, id);
+  const c = compItems.find(x=>x.id===id);
+  _compColors = c ? (Array.isArray(c.colors)?[...c.colors]:( c.colors?JSON.parse(c.colors):[] )) : [];
 }
 
 function getAllDescendantIds(parentId) {
